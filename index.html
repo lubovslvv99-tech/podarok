@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Подтвердите, что вы не робот</title>
+<style>
+  :root{--blue:#4285f4;--ink:#20232a;--muted:#6b7280;--ok:#16a34a;--err:#dc2626}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+    color:var(--ink);background:radial-gradient(1200px 600px at 50% -10%,#ffe9f2,#f4f6fb 60%,#eef1f7);
+    display:flex;align-items:center;justify-content:center;padding:16px;
+    transition:background 1s ease}
+  body.unlocked{background:radial-gradient(1200px 600px at 50% -10%,#d6ffe4,#eefcf3 55%,#e6f7ec)}
+  .wrap{width:100%;max-width:430px}
+  .screen{display:none}
+  .screen.active{display:block;animation:pop .35s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .card{background:#fff;border-radius:16px;box-shadow:0 18px 50px rgba(20,30,60,.16);overflow:hidden}
+  .pad{padding:18px}
+
+  /* экран 1 */
+  .hello{text-align:center;margin-bottom:14px}
+  .hello h1{font-size:20px;margin:0 0 6px}
+  .hello p{margin:0;color:var(--muted);font-size:14px;line-height:1.45}
+  .robot{display:flex;align-items:center;gap:12px;border:1px solid #d3d3d3;border-radius:12px;padding:14px;cursor:pointer}
+  .box{width:26px;height:26px;border:2px solid #909090;border-radius:4px;flex:0 0 auto;position:relative;background:#fff}
+  .robot .logo{margin-left:auto;text-align:center;color:#9aa0a6;font-size:9px;line-height:1.1;cursor:pointer}
+  .robot .logo b{display:block;font-size:18px}
+  .spin{width:24px;height:24px;border:3px solid #dbe3f0;border-top-color:var(--blue);border-radius:50%;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  /* экран 2 — капча */
+  .head{background:var(--blue);color:#fff;padding:14px 16px}
+  .head .small{font-size:14px;opacity:.95}
+  .head .task{font-size:19px;font-weight:700;margin-top:2px}
+  .steps{padding:8px 14px 0;font-size:12px;color:var(--muted);display:flex;justify-content:space-between}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:6px}
+  .grid.two{grid-template-columns:repeat(2,1fr);gap:7px;padding:8px}
+  .grid.two .inner{font-size:70px}
+  .grid.two .check{width:30px;height:30px;line-height:30px;font-size:18px;left:8px;top:8px}
+
+  .tile{position:relative;width:100%;padding-top:100%;border-radius:6px;overflow:hidden;
+    background:#eef1f6;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
+    border:3px solid transparent;transition:border-color .15s}
+  .tile .inner{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;
+    justify-content:center;font-size:38px;pointer-events:none;transition:transform .15s;background:#eef1f6}
+  .tile img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+  .tile:active .inner{transform:scale(.94)}
+  .tile.sel{border-color:var(--blue)}
+  .tile.sel .inner{transform:scale(.85);border-radius:10px}
+  .check{position:absolute;left:5px;top:5px;width:24px;height:24px;border-radius:50%;background:var(--blue);
+    color:#fff;font-size:15px;line-height:24px;text-align:center;font-weight:700;
+    box-shadow:0 2px 6px rgba(0,0,0,.3);opacity:0;transform:scale(.4);transition:.15s;pointer-events:none;z-index:2}
+  .tile.sel .check{opacity:1;transform:scale(1)}
+  .tile.tip{animation:tip 1s infinite}
+  @keyframes tip{0%,100%{border-color:#ffd166}50%{border-color:transparent}}
+  .dbg{position:absolute;bottom:0;left:0;right:0;background:#000a;color:#fff;font-size:9px;
+    text-align:center;z-index:3;pointer-events:none;padding:1px 0;overflow:hidden;white-space:nowrap}
+
+  .bar{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid #eee}
+  .icons{display:flex;gap:14px;color:#9aa0a6;font-size:18px;cursor:pointer}
+  .btn{margin-left:auto;background:var(--blue);color:#fff;border:0;border-radius:8px;padding:11px 22px;
+    font-size:15px;font-weight:600;cursor:pointer}
+  .hint{padding:0 14px 10px;font-size:13px;color:var(--err);min-height:20px;line-height:1.35}
+  .hint.ok{color:var(--ok)}
+
+  /* загрузка */
+  .load{text-align:center;padding:30px 20px}
+  .load .status{margin-top:16px;font-size:15px;color:var(--muted);min-height:22px}
+  .track{height:8px;background:#e8ecf4;border-radius:99px;overflow:hidden;margin-top:18px}
+  .fill{height:100%;width:0;background:linear-gradient(90deg,#ff8ab5,var(--blue));transition:width .5s}
+
+  /* финал */
+  .final{text-align:center;padding:26px 20px}
+  .verified{display:inline-flex;align-items:center;gap:8px;background:#eafaf0;color:var(--ok);
+    border-radius:99px;padding:6px 14px;font-size:13px;font-weight:600;margin-bottom:14px}
+  .final h2{margin:0 0 4px;font-size:24px}
+  .names{font-size:15px;color:var(--muted);margin-bottom:16px}
+  .final p{font-size:16px;line-height:1.6;margin:0 0 14px}
+
+  .gift{border:2px dashed #86e0a6;border-radius:14px;padding:18px;background:#f1fdf5;animation:pop .4s ease}
+  .gift .em{font-size:46px;animation:unlock .7s ease}
+  @keyframes unlock{0%{transform:rotate(0) scale(.6);opacity:0}
+                    55%{transform:rotate(-14deg) scale(1.15)}
+                    100%{transform:rotate(0) scale(1);opacity:1}}
+  .gift .txt{font-size:15px;line-height:1.55;color:#3a4a3f}
+  .code{display:inline-block;margin:12px 0 4px;padding:8px 18px;border-radius:10px;background:#fff;
+    border:1px dashed #6fcf97;font-family:monospace;font-size:21px;font-weight:700;letter-spacing:2px;color:#12924f}
+  .tg{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;
+    text-decoration:none;background:#229ED9;color:#fff;padding:12px 22px;border-radius:10px;
+    font-size:16px;font-weight:600;box-shadow:0 6px 18px rgba(34,158,217,.35)}
+  .small-note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.45}
+  .sign{margin-top:18px;font-size:14px;color:var(--muted)}
+  .btn.wide{margin:14px auto 0;display:block;background:#ff5c93}
+  canvas#cf{position:fixed;top:0;left:0;pointer-events:none;z-index:99}
+  .shake{animation:sh .35s}
+  @keyframes sh{0%,100%{transform:none}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+  /* сумма */
+  .amt-wrap{margin:10px 0 4px;padding:14px 10px;border-radius:12px;background:#fff;border:1px solid #b9ebcb}
+  .amt-lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#2f8f5b}
+  .amt{font-size:38px;font-weight:800;letter-spacing:1px;line-height:1.15;margin-top:4px;
+    background:linear-gradient(90deg,#12924f,#3fc47b);-webkit-background-clip:text;
+    background-clip:text;-webkit-text-fill-color:transparent;color:#12924f}
+  .amt-sub{font-size:12px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+<canvas id="cf"></canvas>
+<div class="wrap">
+
+  <div class="screen active" id="s1">
+    <div class="hello">
+      <h1>🔒 Доступ к подарку</h1>
+      <p>Чтобы получить подарок, подтвердите,<br>что вы не роботы.</p>
+    </div>
+    <div class="card pad">
+      <div class="robot" id="robotRow">
+        <div class="box" id="box"></div>
+        <span>Я не робот</span>
+        <div class="logo" id="secret"><b>💍</b>captcha<br>любви</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="s2">
+    <div class="card">
+      <div class="head">
+        <div class="small">Выберите все изображения, на которых</div>
+        <div class="task" id="task">—</div>
+      </div>
+      <div class="steps"><span id="stepN"></span><span id="selN"></span></div>
+      <div class="grid" id="grid"></div>
+      <div class="hint" id="hint"></div>
+      <div class="bar">
+        <div class="icons"><span id="reload" title="Другие картинки">🔄</span><span id="help" title="Помощь">❓</span></div>
+        <button class="btn" id="verify">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="s3">
+    <div class="card load">
+      <div class="spin" style="margin:0 auto"></div>
+      <div class="status" id="status">Проверяем...</div>
+      <div class="track"><div class="fill" id="fill"></div></div>
+    </div>
+  </div>
+
+  <div class="screen" id="s4">
+    <div class="card final">
+      <div class="verified">✅ Проверка пройдена</div>
+      <h2 id="fTitle"></h2>
+      <div class="names" id="fNames"></div>
+      <p id="fText"></p>
+      <div class="gift" id="giftBox" style="display:none">
+        <div class="em" id="gEm"></div>
+        <div class="amt-wrap">
+          <div class="amt-lbl" id="amtLbl"></div>
+          <div class="amt" id="amt">0 ₽</div>
+          <div class="amt-sub" id="amtSub"></div>
+        </div>
+        <div class="txt" id="gText"></div>
+        <div class="code" id="gCode"></div>
+        <div><a class="tg" id="tgLink" href="#" target="_blank" rel="noopener">✈️ Написать</a></div>
+        <div class="small-note" id="gNote"></div>
+      </div>
+      <button class="btn wide" id="openGift">Открыть подарок 🎁</button>
+      <div class="sign" id="fSign"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================== НАСТРОЙКИ ================== */
+const CONFIG = {
+  names:"Валера и Даша",
+  date:"27 августа 2026",
+
+  telegram:"@mr_vitali",
+  codeWord:"ПОДАРОК",
+
+  amount:500000,
+  currency:"₽",
+  amountLabel:"Разблокировано",
+  amountSub:"Комиссия не взимается",
+
+  /* ФОТО ЛЕЖАТ РЯДОМ С index.html — без папок */
+  photos:{
+    /* 4 фото — ТОЛЬКО жених */
+    groom:   ["groom1.jpg","groom2.jpg","groom3.jpg","groom4.jpg"],
+
+    /* 5 «лишних» для раунда ЖЕНИХ (без жениха!) */
+    notgroom:["notgroom1.jpg","notgroom2.jpg","notgroom3.jpg",
+              "notgroom4.jpg","notgroom5.jpg"],
+
+    /* 6 фото — ТОЛЬКО невеста */
+    bride:   ["bride1.jpg","bride2.jpg","bride3.jpg",
+              "bride4.jpg","bride5.jpg","bride6.jpg"],
+
+    /* 3 «лишних» для раунда НЕВЕСТА (без невесты!) */
+    notbride:["notbride1.jpg","notbride2.jpg","notbride3.jpg"],
+
+    /* 4 фото — вдвоём (сетка 2×2) */
+    couple:  ["couple1.jpg","couple2.jpg","couple3.jpg","couple4.jpg"]
+  },
+
+  rounds:3, hintAfter:2, passAfter:4,
+
+  finalTitle:"Проверка пройдена 🎉",
+  finalText:"Поздравляем со свадьбой! Пусть будет много смеха, вкусной еды "+
+            "и поводов никуда не спешить.",
+
+  giftEmoji:"🔓",
+  giftText:"Для получения — напишите в Телеграм это кодовое слово:",
+  giftNote:"",
+
+  sign:"С любовью, Виталя и Люба 🤍"
+};
+/* =============================================== */
+
+const FALLBACK = {
+  groom:   ["🤵","🤵‍♂️","👨‍💼","🕺"],
+  notgroom:["🐱","🍕","🤖","🚗","🌵"],
+  bride:   ["👰","👰‍♀️","👩‍🦰","💃","👩","👩‍🎨"],
+  notbride:["🍰","🎸","🦆"],
+  couple:  ["💑","👩‍❤️‍👨","💏","💍"]
+};
+
+const ROUNDS=[
+  {type:"groom", label:"ЖЕНИХ",   hint:"", size:9, correct:4, wrong:"notgroom"},
+  {type:"bride", label:"НЕВЕСТА", hint:"", size:9, correct:6, wrong:"notbride"},
+  {type:"couple",label:"НАСТОЯЩАЯ ЛЮБОВЬ", hint:"(подсказка: везде)", size:4, all:true}
+];
+const JOKES=["Хм, что-то не сходится 👀","Почти! Попробуйте ещё раз 🙂",
+  "Не-а, присмотритесь внимательнее 😄","Ещё попытка — вы близко!"];
+
+const $=s=>document.querySelector(s);
+const rnd=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(v=>v[1]);
+const DEBUG=location.search.includes('debug');
+let round=0, fails=0, joke=0;
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');}
+
+/* ---- экран 1 ---- */
+$('#robotRow').addEventListener('click',()=>{
+  const b=$('#box'); if(!b||b.dataset.go) return; b.dataset.go=1;
+  b.className='spin'; b.style.border='3px solid #dbe3f0'; b.style.borderTopColor='#4285f4';
+  setTimeout(()=>{show('#s2');newRound();},1000);
+});
+let taps=0;
+$('#secret').addEventListener('click',e=>{e.stopPropagation();if(++taps>=3)loading();});
+
+/* ---- капча ---- */
+function makeTile(type,src){
+  const el=document.createElement('div');
+  el.className='tile'; el.dataset.type=type;
+  const inner=document.createElement('div'); inner.className='inner';
+  const chk=document.createElement('div'); chk.className='check'; chk.textContent='✓';
+  if(src){
+    const img=new Image(); img.src=src; img.alt='';
+    img.onerror=()=>{inner.textContent=rnd(FALLBACK[type]||['❔']);};
+    inner.appendChild(img);
+  } else inner.textContent=rnd(FALLBACK[type]||['❔']);
+  el.appendChild(inner); el.appendChild(chk);
+  if(DEBUG){
+    const d=document.createElement('div'); d.className='dbg';
+    d.textContent = src || type;
+    el.appendChild(d);
+  }
+  el.addEventListener('click',()=>{el.classList.toggle('sel');updSel();});
+  return el;
+}
+function pick(type,n){
+  const list=CONFIG.photos[type]||[];
+  if(!list.length) return Array(n).fill(null);
+  const out=[];
+  while(out.length<n) shuffle(list.slice()).forEach(s=>{ if(out.length<n) out.push(s); });
+  return out;
+}
+function newRound(){
+  const r=ROUNDS[round];
+  const N=r.size||9;
+  const grid=$('#grid');
+  grid.className='grid'+(N===4?' two':'');
+  grid.innerHTML='';
+
+  $('#task').innerHTML=r.label+(r.hint?' <span style="font-weight:400;font-size:13px;opacity:.9">'+r.hint+'</span>':'');
+  $('#stepN').textContent='Задание '+(round+1)+' из '+CONFIG.rounds;
+  $('#hint').textContent=''; $('#hint').className='hint';
+
+  let items=[];
+  if(r.all){
+    pick(r.type,N).forEach(s=>items.push({t:r.type,s}));
+  }else{
+    const n=Math.min(r.correct,N-1);
+    pick(r.type,n).forEach(s=>items.push({t:r.type,s}));
+    pick(r.wrong,N-n).forEach(s=>items.push({t:r.wrong,s}));
+    items=shuffle(items);
+  }
+  items.slice(0,N).forEach(o=>grid.appendChild(makeTile(o.t,o.s)));
+  updSel();
+}
+function updSel(){
+  const n=document.querySelectorAll('.tile.sel').length;
+  $('#selN').textContent=n?('выбрано: '+n):'';
+}
+$('#reload').addEventListener('click',()=>{fails=0;newRound();});
+$('#help').addEventListener('click',()=>{
+  $('#hint').className='hint ok';
+  $('#hint').textContent='Нажимайте на все квадраты с нужным человеком, потом «Подтвердить».';
+});
+
+$('#verify').addEventListener('click',()=>{
+  const r=ROUNDS[round], tiles=[...document.querySelectorAll('.tile')];
+  const need=tiles.filter(t=>t.dataset.type===r.type);
+  const sel =tiles.filter(t=>t.classList.contains('sel'));
+  if(!sel.length){msg('Выберите хотя бы одно изображение 🙃');return;}
+  const ok=tiles.every(t=>t.classList.contains('sel')===(t.dataset.type===r.type));
+
+  if(ok){
+    fails=0; $('#hint').className='hint ok'; $('#hint').textContent='Верно! ✔';
+    round++;
+    setTimeout(()=>{ round>=CONFIG.rounds ? loading() : newRound(); },700);
+    return;
+  }
+  fails++;
+  if(fails>=CONFIG.passAfter){
+    $('#hint').className='hint ok';
+    $('#hint').textContent='Ладно-ладно, вы точно люди 😅 Пропускаем!';
+    setTimeout(loading,1200); return;
+  }
+  msg(JOKES[joke++%JOKES.length]+(fails>=CONFIG.hintAfter?' Подсказка — жёлтая рамка.':''));
+  if(fails>=CONFIG.hintAfter) need.forEach(t=>t.classList.add('tip'));
+});
+function msg(t){
+  $('#hint').className='hint'; $('#hint').textContent=t;
+  $('#s2').classList.add('shake');
+  if(navigator.vibrate) navigator.vibrate(100);
+  setTimeout(()=>$('#s2').classList.remove('shake'),350);
+}
+
+/* ---- загрузка ---- */
+function loading(){
+  show('#s3');
+  const st=[['Анализируем уровень любви...',22],
+            ['Совместимость... 99,9%',50],
+            ['Считаем деньги в конверте 💸',78],
+            ['Готово!',100]];
+  let i=0;(function next(){
+    if(i>=st.length){setTimeout(final,500);return;}
+    $('#status').textContent=st[i][0]; $('#fill').style.width=st[i][1]+'%'; i++; setTimeout(next,900);
+  })();
+}
+/* ---- финал ---- */
+function final(){
+  $('#fTitle').textContent=CONFIG.finalTitle;
+  $('#fNames').textContent=CONFIG.names+' · '+CONFIG.date;
+  $('#fText').innerHTML=CONFIG.finalText;
+  $('#fSign').textContent=CONFIG.sign;
+  show('#s4'); confetti();
+}
+$('#openGift').addEventListener('click',e=>{
+  const nick=CONFIG.telegram.replace(/^@/,'');
+  document.body.classList.add('unlocked');
+  $('#gEm').textContent=CONFIG.giftEmoji;
+  $('#gText').innerHTML=CONFIG.giftText;
+  $('#gCode').textContent=CONFIG.codeWord;
+  $('#gNote').innerHTML=CONFIG.giftNote||'';
+  $('#gNote').style.display=CONFIG.giftNote?'block':'none';
+  $('#amtLbl').textContent=CONFIG.amountLabel;
+  $('#amtSub').textContent=CONFIG.amountSub||'';
+  const a=$('#tgLink');
+  a.href='https://t.me/'+nick+'?text='+encodeURIComponent(CONFIG.codeWord);
+  a.innerHTML='✈️ Написать @'+nick;
+  $('#giftBox').style.display='block';
+  e.target.style.display='none';
+  if(navigator.vibrate) navigator.vibrate([40,60,40]);
+  countUp($('#amt'),CONFIG.amount,1600);
+  confetti();
+});
+/* счётчик суммы */
+function fmt(n){return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+function countUp(el,to,dur){
+  const t0=performance.now();
+  (function step(t){
+    const p=Math.min(1,(t-t0)/dur);
+    const e=1-Math.pow(1-p,3);
+    el.textContent=fmt(Math.round(to*e))+' '+CONFIG.currency;
+    if(p<1) requestAnimationFrame(step);
+    else el.textContent=fmt(to)+' '+CONFIG.currency;
+  })(t0);
+}
+/* ---- конфетти ---- */
+function confetti(){
+  const c=$('#cf'),x=c.getContext('2d');
+  c.width=innerWidth;c.height=innerHeight;
+  const cols=['#ff5c93','#4285f4','#ffd166','#06d6a0','#ff8ab5','#fff'];
+  const P=Array.from({length:130},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height*.5,
+    r:4+Math.random()*6,s:1.5+Math.random()*3,a:Math.random()*6,col:rnd(cols),w:.05+Math.random()*.1}));
+  let t=0;(function d(){
+    x.clearRect(0,0,c.width,c.height);
+    P.forEach(p=>{p.y+=p.s;p.a+=p.w;p.x+=Math.sin(p.a)*1.2;
+      x.save();x.translate(p.x,p.y);x.rotate(p.a);x.fillStyle=p.col;
+      x.fillRect(-p.r/2,-p.r/2,p.r,p.r*.6);x.restore();});
+    if(++t<300)requestAnimationFrame(d);else x.clearRect(0,0,c.width,c.height);
+  })();
+}
+
+/* ---- проверка наличия всех фото (плашка видна при ?debug) ---- */
+(function checkPhotos(){
+  const all=[];
+  Object.keys(CONFIG.photos).forEach(k=>CONFIG.photos[k].forEach(s=>all.push(s)));
+  let bad=[],done=0;
+  all.forEach(src=>{
+    const im=new Image();
+    im.onload=fin; im.onerror=()=>{bad.push(src);fin();};
+    im.src=src;
+  });
+  function fin(){
+    if(++done<all.length) return;
+    if(bad.length){
+      console.warn('❌ НЕ НАЙДЕНЫ ФОТО:',bad);
+      if(DEBUG){
+        const d=document.createElement('div');
+        d.style.cssText='position:fixed;left:0;right:0;bottom:0;background:#c00;color:#fff;'+
+          'font:12px monospace;padding:8px;z-index:999;max-height:40vh;overflow:auto';
+        d.innerHTML='<b>Не найдены ('+bad.length+'):</b><br>'+bad.join('<br>');
+        document.body.appendChild(d);
+      }
+    } else console.log('✅ Все фото на месте ('+all.length+')');
+  }
+})();
+</script>
+</body>
+</html>
